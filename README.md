@@ -24,9 +24,11 @@ Your `dependencies.edn` file contains the following:
      :speclj [[speclj "3.3.1"]]
      :cljs [[org.clojure/clojurescript "1.7.170"]]}
  
-(:core.async is specified verbosely, the simple vector for
- :speclj and :cljs are converted to a map internally).
- 
+Why is :core.async specified as a map, and the other categories as vectors?
+The map value, with a :dependencies key, is the verbose option
+(that will eventually support some additional features; see below).
+Internally, a vector is wrapped as a map.
+
 Each category can define any number of dependencies, including
 :exclusions or other options. These dependencies are simply
 appended to the standard list of dependencies provided
