@@ -20,15 +20,10 @@ to a vector of dependencies for that category.
 
 Your `dependencies.edn` file contains the following:
 
-    {:core.async {:dependencies [[org.clojure/core.async "0.2.371"]]}
+    {:core.async [org.clojure/core.async "0.2.371"]]
      :speclj [[speclj "3.3.1"]]
      :cljs [[org.clojure/clojurescript "1.7.170"]]}
  
-Why is :core.async specified as a map, and the other categories as vectors?
-The map value, with a :dependencies key, is the verbose option
-(that will eventually support some additional features; see below).
-Internally, a vector is wrapped as a map.
-
 Each category can define any number of dependencies, including
 :exclusions or other options. These dependencies are simply
 appended to the standard list of dependencies provided
@@ -43,17 +38,41 @@ A sub-project may define dependencies on some or all of these:
       :profiles {:dev {:dependency-categories [:speclj]}})                   
 
 The extra dependencies are available to the REPL, tests, or other plugins, exactly
-as if specified directly in the `project.clj` normally.
+as if specified directly in `project.clj` normally.
+
+## Extending Categories
+
+Say you notice that *everywhere* that you use ClojureScript (the :cljs category)
+you are also using the :core.async category.  That can be expressed
+by changing `dependencies.edn`:
+
+    {:core.async [[org.clojure/core.async "0.2.371"]]
+     :speclj [[speclj "3.3.1"]]
+     :cljs {:extends [:core.async]
+            :dependencies [[org.clojure/clojurescript "1.7.170"]]}}
+
+At this point, if you specify the :cljs category in a sub-project, 
+you get not just the :cljs artifact dependencies, but the :core.async
+artifact dependencies 'for free'. 
+
+The shared-deps plugin
+treats the :cljs category as a dependency of the :core.async category; this means that
+the :core.async artifact dependencies will be added first, and 
+the :cljs artifact dependencies added later.
 
 ## Coming Soon
 
-Categories will be able to extend other categories.
-
-Categories will be able to provide exclusion rules.
+Categories will be able to provide exclusion rules as well as artifact
+dependencies.
 
 ## Usage
 
 Put `[shared-deps "<version>"]` into the `:plugins` vector of your `project.clj`.
+
+You can verify the behavior with  `lein pprint :dependencies'; the output from
+this command will be the full list of dependencies, after shared-deps
+has processed all categories in the active profiles.  You will need
+to enable the lein-pprint plugin.
 
 ## License
 
