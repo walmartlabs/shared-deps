@@ -6,15 +6,15 @@ cumbersome.  On one of our main projects, we have 70 sub-projects.
 Upgrading to the latest release of, say, core.async, involves too
 much global replacing ... it is not *Don't Repeat Yourself*.
 
-With this plugin, you can define *categories* of dependencies,
+With this plugin, you can define *sets* of dependencies,
 and store them across all-sub modules in a single `dependencies.edn` file
 at the root of your project.
 
 Each sub-module can include the `shared-deps` plugin, and specify
-a :dependency-categories key, a list of categories.
+a :dependency-sets key, a list of dependency set ids.
 
-`dependencies.edn` contains a single map: from category
-to a vector of dependencies for that category.
+`dependencies.edn` contains a single map: from dependency set id
+to a vector of dependencies for that dependency set.
 
 ## Example
 
@@ -24,7 +24,7 @@ Your `dependencies.edn` file contains the following:
      :speclj [[speclj "3.3.1"]]
      :cljs [[org.clojure/clojurescript "1.7.170"]]}
  
-Each category can define any number of dependencies, including
+Each dependency set can define any number of dependencies, including
 :exclusions or other options. These dependencies are simply
 appended to the standard list of dependencies provided
 in `project.clj`.
@@ -42,8 +42,8 @@ as if specified directly in `project.clj` normally.
 
 ## Extending Categories
 
-Say you notice that *everywhere* that you use ClojureScript (the :cljs category)
-you are also using the :core.async category.  That can be expressed
+Say you notice that *everywhere* that you use ClojureScript (the :cljs dependency set)
+you are also using the :core.async dependency set.  That can be expressed
 by changing `dependencies.edn`:
 
     {:core.async [[org.clojure/core.async "0.2.371"]]
@@ -51,12 +51,12 @@ by changing `dependencies.edn`:
      :cljs {:extends [:core.async]
             :dependencies [[org.clojure/clojurescript "1.7.170"]]}}
 
-At this point, if you specify the :cljs category in a sub-project, 
+At this point, if you specify the :cljs dependency set in a sub-project, 
 you get not just the :cljs artifact dependencies, but the :core.async
 artifact dependencies 'for free'. 
 
 The shared-deps plugin
-treats the :cljs category as a dependency of the :core.async category; this means that
+treats the :cljs dependency set as a dependency of the :core.async dependency set; this means that
 the :core.async artifact dependencies will be added first, and 
 the :cljs artifact dependencies added later.
 
@@ -70,8 +70,8 @@ dependencies.
 Put `[shared-deps "<version>"]` into the `:plugins` vector of your `project.clj`.
 
 You can verify the behavior with  `lein pprint :dependencies'; the output from
-this command will be the full list of dependencies, after shared-deps
-has processed all categories in the active profiles.  You will need
+this command will be the full list of dependencies, after the shared-deps plugin
+has processed all dependency sets in the active profiles.  You will need
 to enable the lein-pprint plugin.
 
 ## License

@@ -1,4 +1,4 @@
-(defproject shared-deps "0.1.0"
+(defproject shared-deps "0.2.0"
   :description "Centralized declaration of dependencies for multi-projects"
   :url "TBD"
   :license {:name "Apache Software License 2.0"

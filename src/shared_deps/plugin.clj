@@ -1,5 +1,5 @@
 (ns shared-deps.plugin
-  "Modifies the project by reading the :dependency-categories key
+  "Modifies the project by reading the :dependency-sets key
   and merging in the appropriate dependencies specified in the
   dependencies.edn file."
   (:require [leiningen.core.main :as main]
@@ -10,7 +10,6 @@
             [medley.core :as medley]
             [com.stuartsierra.dependency :as d])
   (:import (java.io PushbackReader)))
-
 
 (defn- find-dependencies-file
   [{root-path :root
@@ -27,13 +26,13 @@
       f
 
       :else
-      (recur (.getParent dir)))))
+      (recur (.getParentFile dir)))))
 
 (defn- read-dependencies-file*
   [file]
   (main/debug (format "Reading shared dependencies from `%s'." file))
   (with-open [s (io/reader file)]
-    ;; Allow the values for each category to be a vector, which is expanded
+    ;; Allow the values for each dependency set to be a vector, which is expanded
     ;; to a map with key :dependencies
     (medley/map-vals
       #(if (vector? %)
@@ -51,82 +50,81 @@
 
 
 (defn- order-categories-by-dependency
-  "Builds a graph of the dependencies of the categories, used to order
+  "Builds a graph of the dependencies of the sets, used to order
   them when creating artifact dependencies in the project map.
 
-  Each category may have an :extends key in the shared dependencies map.
-  This is is used to set dependency ordering.
+  Each set may have an :extends key in the shared dependencies map.
+  This is is used to set dependency set ordering.
 
-  Returns an ordered seq of categories reflecting dependencies and
-  additional categories added due to :extends."
-  [shared-dependencies categories]
-  (loop [cat-queue categories
+  Returns an ordered seq of set names reflecting dependencies and
+  additional dependency sets added due to :extends."
+  [shared-dependencies set-ids]
+  (loop [set-queue set-ids
          visited? #{}
          graph (d/graph)]
     (cond-let
 
-      (empty? cat-queue)
+      (empty? set-queue)
       (->> graph
            d/topo-sort
            (remove nil?))
 
-      [[cat & more-cats] cat-queue]
+      [[set-id & more-set-ids] set-queue]
 
-      (visited? cat)
-      (recur more-cats visited? graph)
+      (visited? set-id)
+      (recur more-set-ids visited? graph)
 
-      ;; this category key has been visited; this is true even
-      ;; if the category key is invalid (not present in the shared dependencies).
-      [visited?' (conj visited? cat)
-       category (get shared-dependencies cat)]
+      ;; this set name has been visited; this is true even
+      ;; if the set name is invalid (not present in the shared dependencies).
+      [visited?' (conj visited? set-id)
+       dependency-set (get shared-dependencies set-id)]
 
-      (nil? category)
+      (nil? dependency-set)
       (do
-        (main/warn (format "No such shared dependency category %s; defined categories: %s."
-                           cat
+        (main/warn (format "No such shared dependency set %s; defined sets: %s."
+                           set-id
                            (->> shared-dependencies keys (map str) sort (str/join ", "))))
-        (recur more-cats visited?' graph))
+        (recur more-set-ids visited?' graph))
 
-      [extends (:extends category)]
+      [extends (:extends dependency-set)]
 
       (nil? extends)
-      (recur more-cats
+      (recur more-set-ids
              visited?'
-             (d/depend graph cat nil))
+             (d/depend graph set-id nil))
 
       :else
-      (recur (into more-cats extends)
+      (recur (into more-set-ids extends)
              visited?'
-             (reduce #(d/depend %1 cat %2) graph extends)))))
+             (reduce #(d/depend %1 set-id %2) graph extends)))))
 
-(defn- apply-category
-  [shared-dependencies project category]
-  ;; TODO: warning when category not found
+(defn- apply-set
+  [shared-dependencies project set-id]
+  ;; TODO: warning when dependency set not found
   ;; Using update-in for compatibility with older version of Clojure.
   ;; Convert it to update at some point in future.
   (update-in project [:dependencies]
-             into (get-in shared-dependencies [category :dependencies])))
+             into (get-in shared-dependencies [set-id :dependencies])))
 
-(defn- apply-categories
-  [project categories shared-dependencies]
-  (main/debug (format "Applying categories %s to project %s."
-                      (str/join ", " categories)
+(defn- apply-sets
+  [project sets shared-dependencies]
+  (main/debug (format "Applying dependency sets %s to project %s."
+                      (str/join ", " sets)
                       (:name project)))
-  ;; TODO: transitive categories in correct order
   ;; Since order counts, and what we get is usually some flavor of list (or lazy
   ;; seq), convert dependencies into a vector first.
-  (-> (reduce (partial apply-category shared-dependencies)
+  (-> (reduce (partial apply-set shared-dependencies)
               (update-in project [:dependencies] vec)
-              (order-categories-by-dependency shared-dependencies categories))
+              (order-categories-by-dependency shared-dependencies sets))
       ;; There's any number of ways that we can end up with duplicated lines
       ;; including that the middleware is invoked for each profile.
       ;; So we clean the dependencies.
       (update-in [:dependencies]
                  (comp vec distinct))))
 
-(defn- extend-project-with-categories [project categories]
+(defn- extend-project-with-sets [project set-ids]
   (or (if-let [shared-dependencies (read-shared-dependencies project)]
-        (apply-categories project categories shared-dependencies))
+        (apply-sets project set-ids shared-dependencies))
       ;; Any prior stage can return nil on a failure, and we'll just return
       ;; the project unchanged.
       project))
@@ -138,15 +136,15 @@
 
 (defn middleware
   "The middleware invoked (multiple times!) by Leiningen, to extend and modify
-  the project description. This middleware is triggered by the :dependency-categories
+  the project description. This middleware is triggered by the :dependency-sets
   key, and modifies the :dependencies key."
   [project]
-  (if-let [categories (-> project :dependency-categories seq)]
-    (extend-project-with-categories project categories)
+  (if-let [set-ids (-> project :dependency-sets seq)]
+    (extend-project-with-sets project set-ids)
     (let [project-name (:name project)]
       (when-not (get @warning-output project-name)
         (swap! warning-output assoc project-name true)
         (main/warn (format
-                     "Project %s should specify a list of dependency categories in its :dependency-categories key."
+                     "Project %s should specify a list of dependency set ids in its :dependency-sets key."
                      project-name)))
       project)))
