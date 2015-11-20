@@ -3,11 +3,12 @@
 > Will not be up on Clojars until Saturday; you will need to build locally
 > and `lein install` to check it out.
 
-If you've worked with projects with *large* numbers of subprojects,
+If you've worked with projects with *large* numbers of subprojects
+(using the [lein-sub](https://github.com/kumarshantanu/lein-sub) plugin),
 you may have noticed that coordinating your dependencies can get a bit
 cumbersome.  On one of our main projects, we have 70 sub-projects.
 Upgrading to the latest release of, say, core.async, involves too
-much global replacing ... it is not *Don't Repeat Yourself*.
+much global search and replace ... it is not *Don't Repeat Yourself*.
 
 With this plugin, you can define *sets* of dependencies,
 and store them across all-sub modules in a single `dependencies.edn` file
