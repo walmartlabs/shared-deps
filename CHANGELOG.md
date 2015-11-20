@@ -1,4 +1,7 @@
-## 0.3.0 - UNRELEASED
+## 0.2.1 - 20 Nov 2015
+
+First public release.
+Improvements to documentation.
 
 ## 0.2.0 - 9 Nov 2015
 
