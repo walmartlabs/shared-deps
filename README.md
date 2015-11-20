@@ -16,7 +16,7 @@ With this plugin, you can define *sets* of dependencies,
 and store them across all-sub modules in a single `dependencies.edn` file
 at the root of your project.
 
-Each sub-module must include the `shared-deps` plugin, and specify
+Each sub-module must include the shared-deps plugin, and specify
 a :dependency-sets key, a list of dependency set ids.
 
 `dependencies.edn` contains a single map: from dependency set id
