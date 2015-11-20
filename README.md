@@ -1,5 +1,8 @@
 # shared-deps
 
+> Will not be up on Clojars until Saturday; you will need to build locally
+> and `lein install` to check it out.
+
 If you've worked with projects with *large* numbers of subprojects,
 you may have noticed that coordinating your dependencies can get a bit
 cumbersome.  On one of our main projects, we have 70 sub-projects.
