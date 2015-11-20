@@ -1,16 +1,12 @@
 # shared-deps
 
+[![Clojars Project](http://clojars.org/walmartlabs/shared-deps/latest-version.svg)]
+
 If you've worked with projects with *large* numbers of subprojects,
 you may have noticed that coordinating your dependencies can get a bit
 cumbersome.  On one of our main projects, we have 70 sub-projects.
 Upgrading to the latest release of, say, core.async, involves too
 much global replacing ... it is not *Don't Repeat Yourself*.
-
-More than just versioning is the challenge of maintaining the nest of exclusion rules
-that can occur when trying to mix and match various third party
-dependencies and their individual transitive dependencies.
-Having a DRY solution here keeps the project.clj files very concise
-and readable.
 
 With this plugin, you can define *sets* of dependencies,
 and store them across all-sub modules in a single `dependencies.edn` file
@@ -21,6 +17,13 @@ a :dependency-sets key, a list of dependency set ids.
 
 `dependencies.edn` contains a single map: from dependency set id
 to a vector of dependencies for that dependency set.
+
+More than just coordinating artifact versions
+is the challenge of maintaining the nest of exclusion rules
+that can occur when trying to mix and match various third party
+dependencies and their individual transitive dependencies.
+Having a DRY solution here keeps the project.clj files very concise
+and readable.
 
 ## Example
 
