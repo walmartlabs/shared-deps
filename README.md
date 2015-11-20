@@ -1,7 +1,5 @@
 # shared-deps
 
-[![Clojars Project](http://clojars.org/walmartlabs/shared-deps/latest-version.svg)]
-
 If you've worked with projects with *large* numbers of subprojects,
 you may have noticed that coordinating your dependencies can get a bit
 cumbersome.  On one of our main projects, we have 70 sub-projects.
@@ -93,7 +91,7 @@ for third party dependencies.
 
 Put `[shared-deps "0.2.1"]` into the `:plugins` vector of your `project.clj`.
 
-You can verify the behavior with  `lein pprint :dependencies'; the output from
+You can verify the behavior with  `lein pprint :dependencies`; the output from
 this command will be the full list of dependencies, after the shared-deps plugin
 has processed all dependency sets in the active profiles.  You will need
 to enable the lein-pprint plugin.
