@@ -6,11 +6,17 @@ cumbersome.  On one of our main projects, we have 70 sub-projects.
 Upgrading to the latest release of, say, core.async, involves too
 much global replacing ... it is not *Don't Repeat Yourself*.
 
+More than just versioning is the challenge of maintaining the nest of exclusion rules
+that can occur when trying to mix and match various third party
+dependencies and their individual transitive dependencies.
+Having a DRY solution here keeps the project.cljs files very concise
+and readable.
+
 With this plugin, you can define *sets* of dependencies,
 and store them across all-sub modules in a single `dependencies.edn` file
 at the root of your project.
 
-Each sub-module can include the `shared-deps` plugin, and specify
+Each sub-module must include the `shared-deps` plugin, and specify
 a :dependency-sets key, a list of dependency set ids.
 
 `dependencies.edn` contains a single map: from dependency set id
@@ -34,13 +40,13 @@ A sub-project may define dependencies on some or all of these:
     (defproject my-app "0.1.0-SNAPSHOT"
       :dependencies [[org.clojure/clojure "1.7.0"]
                      [org.clojure/core.match "0.2.2"]]
-      :dependency-categories [:core.async]
-      :profiles {:dev {:dependency-categories [:speclj]}})                   
+      :dependency-sets [:core.async]
+      :profiles {:dev {:dependency-sets[:speclj]}})                   
 
 The extra dependencies are available to the REPL, tests, or other plugins, exactly
-as if specified directly in `project.clj` normally.
+as if specified directly in `project.clj` traditionally.
 
-## Extending Categories
+## Extending Sets
 
 Say you notice that *everywhere* that you use ClojureScript (the :cljs dependency set)
 you are also using the :core.async dependency set.  That can be expressed
@@ -60,14 +66,18 @@ treats the :cljs dependency set as a dependency of the :core.async dependency se
 the :core.async artifact dependencies will be added first, and 
 the :cljs artifact dependencies added later.
 
-## Coming Soon
+## Keywords vs. Symbols
 
-Categories will be able to provide exclusion rules as well as artifact
-dependencies.
+The dependency set ids do not have to be keywords; they can be strings,
+symbols, or any type.
+
+Our convention is to use symbols for cross-project dependencies (dependencies
+between modules within the same umbrella project), and keywords
+for third party dependencies.
 
 ## Usage
 
-Put `[shared-deps "<version>"]` into the `:plugins` vector of your `project.clj`.
+Put `[shared-deps "0.3.0"]` into the `:plugins` vector of your `project.clj`.
 
 You can verify the behavior with  `lein pprint :dependencies'; the output from
 this command will be the full list of dependencies, after the shared-deps plugin

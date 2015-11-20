@@ -49,7 +49,7 @@
     (read-dependencies-file dependencies-file)))
 
 
-(defn- order-categories-by-dependency
+(defn- order-sets-by-dependency
   "Builds a graph of the dependencies of the sets, used to order
   them when creating artifact dependencies in the project map.
 
@@ -115,7 +115,7 @@
   ;; seq), convert dependencies into a vector first.
   (-> (reduce (partial apply-set shared-dependencies)
               (update-in project [:dependencies] vec)
-              (order-categories-by-dependency shared-dependencies sets))
+              (order-sets-by-dependency shared-dependencies sets))
       ;; There's any number of ways that we can end up with duplicated lines
       ;; including that the middleware is invoked for each profile.
       ;; So we clean the dependencies.

@@ -1,3 +1,5 @@
+## 0.3.0 - UNRELEASED
+
 ## 0.2.0 - 9 Nov 2015
 
 Rename "categories" to "sets".

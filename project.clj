@@ -1,6 +1,6 @@
-(defproject shared-deps "0.2.0"
+(defproject walmartlabs/shared-deps "0.3.0"
   :description "Centralized declaration of dependencies for multi-projects"
-  :url "TBD"
+  :url "https://github.com/walmartlabs/shared-deps"
   :license {:name "Apache Software License 2.0"
             :url "http://www.apache.org/licenses/LICENSE-2.0"}
   :eval-in-leiningen true
