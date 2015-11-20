@@ -93,7 +93,7 @@ for third party dependencies.
 
 ## Usage
 
-Put `[shared-deps "0.2.1"]` into the `:plugins` vector of your `project.clj`.
+Put `[walmartlabs/shared-deps "0.2.1"]` into the `:plugins` vector of your `project.clj`.
 
 You can verify the behavior with  `lein pprint :dependencies`; the output from
 this command will be the full list of dependencies, after the shared-deps plugin
