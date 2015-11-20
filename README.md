@@ -31,11 +31,13 @@ and readable.
 
 Your `dependencies.edn` file contains the following:
 
-    {:clojure [[org.clojure/clojure "1.7.0"]]
-     :core.async [org.clojure/core.async "0.2.371"]]
-     :speclj [[speclj "3.3.1"]]
-     :cljs [[org.clojure/clojurescript "1.7.170"]]}
- 
+```clojure
+{:clojure [[org.clojure/clojure "1.7.0"]]
+ :core.async [org.clojure/core.async "0.2.371"]]
+ :speclj [[speclj "3.3.1"]]
+ :cljs [[org.clojure/clojurescript "1.7.170"]]}
+```
+
 Each dependency set can define any number of dependencies, including
 :exclusions or other options. These dependencies are simply
 appended to the standard list of dependencies provided
@@ -43,11 +45,13 @@ in `project.clj`.
  
 A sub-project may define dependencies on some or all of these:
  
-    (defproject my-app "0.1.0-SNAPSHOT"
-      :dependencies [[org.clojure/core.match "0.2.2"]]
-      :dependency-sets [:clojure
-                        :core.async]
-      :profiles {:dev {:dependency-sets [:speclj]}})                   
+ ```clojure
+(defproject my-app "0.1.0-SNAPSHOT"
+  :dependencies [[org.clojure/core.match "0.2.2"]]
+  :dependency-sets [:clojure
+                    :core.async]
+  :profiles {:dev {:dependency-sets [:speclj]}})                   
+```
 
 The extra dependencies are available to the REPL, tests, or other plugins, exactly
 as if specified directly in `project.clj` traditionally.
@@ -58,11 +62,13 @@ Say you notice that *everywhere* that you use ClojureScript (the :cljs dependenc
 you are also using the :core.async dependency set.  That can be expressed
 by changing `dependencies.edn`:
 
-    {:clojure [[org.clojure/clojure "1.7.0"]]
-     :core.async [[org.clojure/core.async "0.2.371"]]
-     :speclj [[speclj "3.3.1"]]
-     :cljs {:extends [:core.async]
-            :dependencies [[org.clojure/clojurescript "1.7.170"]]}}
+```clojure
+{:clojure [[org.clojure/clojure "1.7.0"]]
+ :core.async [[org.clojure/core.async "0.2.371"]]
+ :speclj [[speclj "3.3.1"]]
+ :cljs {:extends [:core.async]
+        :dependencies [[org.clojure/clojurescript "1.7.170"]]}}
+```
 
 At this point, if you specify the :cljs dependency set in a sub-project, 
 you get not just the :cljs artifact dependencies, but the :core.async
