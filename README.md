@@ -9,7 +9,7 @@ much global replacing ... it is not *Don't Repeat Yourself*.
 More than just versioning is the challenge of maintaining the nest of exclusion rules
 that can occur when trying to mix and match various third party
 dependencies and their individual transitive dependencies.
-Having a DRY solution here keeps the project.cljs files very concise
+Having a DRY solution here keeps the project.clj files very concise
 and readable.
 
 With this plugin, you can define *sets* of dependencies,
