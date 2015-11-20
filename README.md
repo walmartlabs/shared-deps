@@ -26,7 +26,8 @@ to a vector of dependencies for that dependency set.
 
 Your `dependencies.edn` file contains the following:
 
-    {:core.async [org.clojure/core.async "0.2.371"]]
+    {:clojure [[org.clojure/clojure "1.7.0"]]
+     :core.async [org.clojure/core.async "0.2.371"]]
      :speclj [[speclj "3.3.1"]]
      :cljs [[org.clojure/clojurescript "1.7.170"]]}
  
@@ -38,10 +39,10 @@ in `project.clj`.
 A sub-project may define dependencies on some or all of these:
  
     (defproject my-app "0.1.0-SNAPSHOT"
-      :dependencies [[org.clojure/clojure "1.7.0"]
-                     [org.clojure/core.match "0.2.2"]]
-      :dependency-sets [:core.async]
-      :profiles {:dev {:dependency-sets[:speclj]}})                   
+      :dependencies [[org.clojure/core.match "0.2.2"]]
+      :dependency-sets [:clojure
+                        :core.async]
+      :profiles {:dev {:dependency-sets [:speclj]}})                   
 
 The extra dependencies are available to the REPL, tests, or other plugins, exactly
 as if specified directly in `project.clj` traditionally.
@@ -52,7 +53,8 @@ Say you notice that *everywhere* that you use ClojureScript (the :cljs dependenc
 you are also using the :core.async dependency set.  That can be expressed
 by changing `dependencies.edn`:
 
-    {:core.async [[org.clojure/core.async "0.2.371"]]
+    {:clojure [[org.clojure/clojure "1.7.0"]]
+     :core.async [[org.clojure/core.async "0.2.371"]]
      :speclj [[speclj "3.3.1"]]
      :cljs {:extends [:core.async]
             :dependencies [[org.clojure/clojurescript "1.7.170"]]}}
@@ -66,7 +68,16 @@ treats the :cljs dependency set as a dependency of the :core.async dependency se
 the :core.async artifact dependencies will be added first, and 
 the :cljs artifact dependencies added later.
 
-## Keywords vs. Symbols
+## Leveraging Sets
+
+You shouldn't think of a set as a way of just specifying a single dependency;
+you will likely find cases, as above with :cljs and :core.async, where you
+consistently use several artifacts together. 
+
+We regularly have complex dependency sets with ids like :logging, :testing,
+or :database.
+
+## Id Conventions
 
 The dependency set ids do not have to be keywords; they can be strings,
 symbols, or any type.
