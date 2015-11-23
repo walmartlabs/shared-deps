@@ -1,7 +1,6 @@
 # shared-deps
 
-> Will not be up on Clojars until Saturday; you will need to build locally
-> and `lein install` to check it out.
+[![Clojars Project](http://clojars.org/walmartlabs/shared-deps/latest-version.svg)](http://clojars.org/walmartlabs/shared-deps)
 
 If you've worked with projects with *large* numbers of subprojects
 (using the [lein-sub](https://github.com/kumarshantanu/lein-sub) plugin),
