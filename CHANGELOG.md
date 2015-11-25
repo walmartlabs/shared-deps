@@ -3,6 +3,8 @@
 Automatically locate sibling projects and establish them as sharable
 dependencies.
 
+Improved reporting of unknown dependency ids.
+
 ## 0.2.1 - 20 Nov 2015
 
 First public release.

@@ -9,7 +9,8 @@
             [io.aviso.toolchest.macros :refer [cond-let]]
             [clojure.edn :as edn]
             [medley.core :as medley]
-            [com.stuartsierra.dependency :as d])
+            [com.stuartsierra.dependency :as d]
+            [clojure.pprint :refer [cl-format]])
   (:import (java.io PushbackReader File)))
 
 (defn- find-dependencies-file
@@ -101,6 +102,27 @@
 
 (def ^:private read-shared-dependencies (memoize read-shared-dependencies*))
 
+(defn- ->id-list
+  [ids]
+  (->> ids
+       (map str)
+       sort
+       (interleave (repeat "\n - "))
+       (apply str)))
+
+(defn- report-unknown-dependencies
+  [unknown-ids shared-dependencies]
+  (let [n (count unknown-ids)]
+    (when (pos? n)
+      (main/warn
+        (apply str
+               (if (= (count unknown-ids) 1)
+                 (format "The dependency id `%s' is not defined." (first unknown-ids))
+                 (str "The following dependency ids are not defined:"
+                      (->id-list unknown-ids)))
+               "\nAvailable dependency ids:"
+               (-> shared-dependencies keys ->id-list))))))
+
 (defn- order-sets-by-dependency
   "Builds a graph of the dependencies of the sets, used to order
   them when creating artifact dependencies in the project map.
@@ -112,19 +134,22 @@
   additional dependency sets added due to :extends."
   [shared-dependencies set-ids]
   (loop [set-queue set-ids
+         unknown-ids #{}
          visited? #{}
          graph (d/graph)]
     (cond-let
 
       (empty? set-queue)
-      (->> graph
-           d/topo-sort
-           (remove nil?))
+      (do
+        (report-unknown-dependencies unknown-ids shared-dependencies)
+        (->> graph
+             d/topo-sort
+             (remove nil?)))
 
       [[set-id & more-set-ids] set-queue]
 
       (visited? set-id)
-      (recur more-set-ids visited? graph)
+      (recur more-set-ids unknown-ids visited? graph)
 
       ;; this set name has been visited; this is true even
       ;; if the set name is invalid (not present in the shared dependencies).
@@ -132,21 +157,22 @@
        dependency-set (get shared-dependencies set-id)]
 
       (nil? dependency-set)
-      (do
-        (main/warn (format "No such shared dependency set %s; defined sets: %s."
-                           set-id
-                           (->> shared-dependencies keys (map str) sort (str/join ", "))))
-        (recur more-set-ids visited?' graph))
+      (recur more-set-ids
+             (conj unknown-ids set-id)
+             visited?'
+             graph)
 
       [extends (:extends dependency-set)]
 
       (nil? extends)
       (recur more-set-ids
+             unknown-ids
              visited?'
              (d/depend graph set-id nil))
 
       :else
       (recur (into more-set-ids extends)
+             unknown-ids
              visited?'
              (reduce #(d/depend %1 set-id %2) graph extends)))))
 
