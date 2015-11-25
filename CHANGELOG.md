@@ -1,3 +1,8 @@
+## 0.2.2 - UNRELEASED
+
+Automatically locate sibling projects and establish them as sharable
+dependencies.
+
 ## 0.2.1 - 20 Nov 2015
 
 First public release.

@@ -23,7 +23,7 @@ More than just coordinating artifact versions
 is the challenge of maintaining the nest of exclusion rules
 that can occur when trying to mix and match various third party
 dependencies and their individual transitive dependencies.
-Having a DRY solution here keeps the project.clj files very concise
+Having a DRY solution here keeps the `project.clj` files very concise
 and readable.
 
 ## Example
@@ -87,18 +87,27 @@ consistently use several artifacts together.
 We regularly have complex dependency sets with ids like :logging, :testing,
 or :database.
 
-## Id Conventions
+## Sibling Dependencies
 
-The dependency set ids do not have to be keywords; they can be strings,
-symbols, or any type.
+Project quite often contain modules that are dependencies to other modules
+within the same umbrella project.
 
-Our convention is to use symbols for cross-project dependencies (dependencies
-between modules within the same umbrella project), and keywords
-for third party dependencies.
+In addition to the dependencies in the dependencies.edn file, the share-deps
+plugin builds a map of all sibling projects, keyed on the project name symbol.
+
+This is helpful as it is always up to date with the version number, also defined
+in each sibling module's `project.clj`.
+
+This works by reading the umbrella project's `project.clj`, and reading the
+:subs key (which is primarily used by the lein-sub plugin), then reading
+each sibling module's `project.clj`.
+
+Be aware that your `dependencies.edn` file may also have symbol keys, and
+those will override any automatically generated sibling dependencies.
 
 ## Usage
 
-Put `[walmartlabs/shared-deps "0.2.1"]` into the `:plugins` vector of your `project.clj`.
+Put `[walmartlabs/shared-deps "0.2.2"]` into the `:plugins` vector of your `project.clj`.
 
 This must be done in *each* sub-module, and must *not* be in the top-level module
 (the one that has the `lein-sub` plugin).

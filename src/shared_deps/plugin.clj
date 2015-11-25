@@ -3,13 +3,14 @@
   and merging in the appropriate dependencies specified in the
   dependencies.edn file."
   (:require [leiningen.core.main :as main]
+            [leiningen.core.project :as project]
             [clojure.java.io :as io]
             [clojure.string :as str]
             [io.aviso.toolchest.macros :refer [cond-let]]
             [clojure.edn :as edn]
             [medley.core :as medley]
             [com.stuartsierra.dependency :as d])
-  (:import (java.io PushbackReader)))
+  (:import (java.io PushbackReader File)))
 
 (defn- find-dependencies-file
   [{root-path :root
@@ -28,7 +29,7 @@
       :else
       (recur (.getParentFile dir)))))
 
-(defn- read-dependencies-file*
+(defn- read-dependencies-file
   [file]
   (main/debug (format "Reading shared dependencies from `%s'." file))
   (with-open [s (io/reader file)]
@@ -42,12 +43,63 @@
           PushbackReader.
           edn/read))))
 
-(def ^:private read-dependencies-file (memoize read-dependencies-file*))
 
-(defn- read-shared-dependencies [project]
-  (when-let [dependencies-file (find-dependencies-file project)]
-    (read-dependencies-file dependencies-file)))
+(defn- read-raw [^File f]
+  (main/debug (format "Reading project file `%s'." f))
+  (try
+    ;; Apparently, the path for read-raw has to be a string, not a File.
+    (project/read-raw (.getAbsolutePath f))
+    (catch Throwable t
+      (main/warn (.getMessage t) t))))
 
+(defn- build-sibling-dependencies-map
+  [root-dir root-project-file]
+  (let [root-project (read-raw root-project-file)]
+    (->> root-project
+         :sub
+         (reduce (fn [deps module-path]
+                   (if-let [project (read-raw (io/file root-dir module-path "project.clj"))]
+                     (let [{project-name :name
+                            project-group :group
+                            version :version} project
+                           name-symbol (symbol project-group project-name)]
+                       (assoc deps name-symbol
+                                   ;; The value is just like an entry in the
+                                   ;; dependencies.edn file: a vector of dependency
+                                   ;; specs (each a vector).
+                                   [[name-symbol version]]))
+                     deps))
+                 {}))))
+
+
+(defn- build-sibling-project-dependencies
+  "Starting from a sub-project, work upwards to the parent project.clj;
+  from this, extract's the :sub key (normally used by the lein-sub plugin),
+  then use this to read all the sibling project's project.clj.  From this, a map
+  from project name (symbol) to dependency vector is created, using each
+  project's name and version."
+  [{root-path :root}]
+  (loop [dir (-> root-path io/file .getParentFile)]
+    (cond-let
+      (nil? dir)
+      (main/warn "Unable to find containing project's project.clj from directory `%s'." root-path)
+
+      [f (io/file dir "project.clj")]
+
+      (.exists f)
+      (build-sibling-dependencies-map dir f)
+
+      :else
+      (recur (.getParentFile dir)))))
+
+(defn- read-shared-dependencies*
+  [project]
+  (let [sibling-dependencies (build-sibling-project-dependencies project)
+        shared-dependencies (some-> (find-dependencies-file project)
+                                    read-dependencies-file)]
+    (merge sibling-dependencies shared-dependencies)))
+
+(def ^:private read-shared-dependencies (memoize read-shared-dependencies*))
 
 (defn- order-sets-by-dependency
   "Builds a graph of the dependencies of the sets, used to order
