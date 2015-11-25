@@ -9,9 +9,12 @@
             [io.aviso.toolchest.macros :refer [cond-let]]
             [clojure.edn :as edn]
             [medley.core :as medley]
-            [com.stuartsierra.dependency :as d]
-            [clojure.pprint :refer [cl-format]])
+            [com.stuartsierra.dependency :as d])
   (:import (java.io PushbackReader File)))
+
+;; Keyed on project name, stores details about what warnings, if any, have
+;; been logged.
+(def ^:private warning-output-flags (atom {}))
 
 (defn- find-dependencies-file
   [{root-path :root
@@ -64,11 +67,11 @@
                             project-group :group
                             version :version} project
                            name-symbol (symbol project-group project-name)]
-                       (assoc deps name-symbol
-                                   ;; The value is just like an entry in the
-                                   ;; dependencies.edn file: a vector of dependency
-                                   ;; specs (each a vector).
-                                   [[name-symbol version]]))
+                       (assoc-in deps [name-symbol :dependencies]
+                                 ;; The value is just like an entry in the
+                                 ;; dependencies.edn file: a vector of dependency
+                                 ;; specs (each a vector).
+                                 [[name-symbol version]]))
                      deps))
                  {}))))
 
@@ -111,11 +114,23 @@
        (apply str)))
 
 (defn- report-unknown-dependencies
-  [unknown-ids shared-dependencies]
-  (let [n (count unknown-ids)]
-    (when (pos? n)
+  [{project-group :group
+    project-name :name} unknown-ids shared-dependencies]
+  (let [n (count unknown-ids)
+        ks [project-name :missing-dependencies]]
+    (when (and (pos? n)
+               (not (get-in @warning-output-flags ks)))
+      ;; lein kind of lets us down here, since the middleware is invoked multiple
+      ;; times due to profiles. So we'll have multiple chances to report dependencies,
+      ;; but because the output is overwhelming (especially on very large
+      ;; projects) we only do the report the first time; this means that you might
+      ;; have to correct all your normal dependencies before even seeing the errors
+      ;; about :dev profile dependencies.
+      (swap! warning-output-flags assoc-in ks true)
       (main/warn
         (apply str
+               (format "Dependency error in project `%s':\n"
+                       (symbol project-group project-name))
                (if (= (count unknown-ids) 1)
                  (format "The dependency id `%s' is not defined." (first unknown-ids))
                  (str "The following dependency ids are not defined:"
@@ -132,7 +147,7 @@
 
   Returns an ordered seq of set names reflecting dependencies and
   additional dependency sets added due to :extends."
-  [shared-dependencies set-ids]
+  [project shared-dependencies set-ids]
   (loop [set-queue set-ids
          unknown-ids #{}
          visited? #{}
@@ -141,7 +156,7 @@
 
       (empty? set-queue)
       (do
-        (report-unknown-dependencies unknown-ids shared-dependencies)
+        (report-unknown-dependencies project unknown-ids shared-dependencies)
         (->> graph
              d/topo-sort
              (remove nil?)))
@@ -178,7 +193,6 @@
 
 (defn- apply-set
   [shared-dependencies project set-id]
-  ;; TODO: warning when dependency set not found
   ;; Using update-in for compatibility with older version of Clojure.
   ;; Convert it to update at some point in future.
   (update-in project [:dependencies]
@@ -193,7 +207,7 @@
   ;; seq), convert dependencies into a vector first.
   (-> (reduce (partial apply-set shared-dependencies)
               (update-in project [:dependencies] vec)
-              (order-sets-by-dependency shared-dependencies sets))
+              (order-sets-by-dependency project shared-dependencies sets))
       ;; There's any number of ways that we can end up with duplicated lines
       ;; including that the middleware is invoked for each profile.
       ;; So we clean the dependencies.
@@ -207,11 +221,6 @@
       ;; the project unchanged.
       project))
 
-;; Keyed on project name, will be true once the warning has
-;; been output (middleware gets called multiple times even in the same
-;; project, based on the application of profiles).
-(def ^:private warning-output (atom {}))
-
 (defn middleware
   "The middleware invoked (multiple times!) by Leiningen, to extend and modify
   the project description. This middleware is triggered by the :dependency-sets
@@ -219,9 +228,10 @@
   [project]
   (if-let [set-ids (-> project :dependency-sets seq)]
     (extend-project-with-sets project set-ids)
-    (let [project-name (:name project)]
-      (when-not (get @warning-output project-name)
-        (swap! warning-output assoc project-name true)
+    (let [project-name (:name project)
+          ks [project-name :missing-ids]]
+      (when-not (get-in @warning-output-flags ks)
+        (swap! warning-output-flags assoc-in ks true)
         (main/warn (format
                      "Project %s should specify a list of dependency set ids in its :dependency-sets key."
                      project-name)))
