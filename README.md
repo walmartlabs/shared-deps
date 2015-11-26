@@ -89,11 +89,13 @@ or :database.
 
 ## Sibling Dependencies
 
-Project quite often contain modules that are dependencies to other modules
-within the same umbrella project.
+Large projects quite often contain modules that are themselves dependencies 
+of other modules within the same umbrella project. In practice, this means that
+it is necessary to keep track of all the version numbers of the modules,
+or keep them in lock sync.
 
-In addition to the dependencies in the dependencies.edn file, the share-deps
-plugin builds a map of all sibling projects, keyed on the project name symbol.
+The shared-deps plugin addresses this with automatic sibling dependencies.
+It  builds a map of all sibling projects, keyed on the project name symbol.
 
 This is helpful as it is always up to date with the version number, also defined
 in each sibling module's `project.clj`.
@@ -102,8 +104,9 @@ This works by reading the umbrella project's `project.clj`, and reading the
 :subs key (which is primarily used by the lein-sub plugin), then reading
 each sibling module's `project.clj`.
 
-Be aware that your `dependencies.edn` file may also have symbol keys, and
-those will override any automatically generated sibling dependencies.
+Be aware that your `dependencies.edn` file may also have symbol keys (not
+just keywords), and
+those will _silently_ override any automatically generated sibling dependencies.
 
 ## Usage
 
