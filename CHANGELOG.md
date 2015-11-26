@@ -1,4 +1,4 @@
-## 0.2.2 - UNRELEASED
+## 0.2.2 - 25 Nov 2015
 
 Automatically locate sibling projects and establish them as sharable
 dependencies.
