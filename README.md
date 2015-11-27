@@ -32,7 +32,7 @@ Your `dependencies.edn` file contains the following:
 
 ```clojure
 {:clojure [[org.clojure/clojure "1.7.0"]]
- :core.async [org.clojure/core.async "0.2.371"]]
+ :core.async [[org.clojure/core.async "0.2.371"]]
  :speclj [[speclj "3.3.1"]]
  :cljs [[org.clojure/clojurescript "1.7.170"]]}
 ```
