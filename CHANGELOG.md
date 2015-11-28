@@ -1,3 +1,10 @@
+## 0.2.3 - 27 Nov 2015
+
+Properly handle dependencies across profiles so that a correct pom.xml
+may be generated. Previously, dependency sets from all modules were merged
+into the base profile, which meant that testing dependencies appeared
+in the pom.xml (they should be excluded).
+
 ## 0.2.2 - 25 Nov 2015
 
 Automatically locate sibling projects and establish them as sharable

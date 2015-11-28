@@ -12,9 +12,6 @@
             [com.stuartsierra.dependency :as d])
   (:import (java.io PushbackReader File)))
 
-;; Keyed on project name, stores details about what warnings, if any, have
-;; been logged.
-(def ^:private warning-output-flags (atom {}))
 
 (defn- find-dependencies-file
   [{root-path :root
@@ -46,7 +43,6 @@
       (-> s
           PushbackReader.
           edn/read))))
-
 
 (defn- read-raw [^File f]
   (main/debug (format "Reading project file `%s'." f))
@@ -96,14 +92,12 @@
       :else
       (recur (.getParentFile dir)))))
 
-(defn- read-shared-dependencies*
+(defn- read-shared-dependencies
   [project]
   (let [sibling-dependencies (build-sibling-project-dependencies project)
         shared-dependencies (some-> (find-dependencies-file project)
                                     read-dependencies-file)]
     (merge sibling-dependencies shared-dependencies)))
-
-(def ^:private read-shared-dependencies (memoize read-shared-dependencies*))
 
 (defn- ->id-list
   [ids]
@@ -116,17 +110,8 @@
 (defn- report-unknown-dependencies
   [{project-group :group
     project-name :name} unknown-ids shared-dependencies]
-  (let [n (count unknown-ids)
-        ks [project-name :missing-dependencies]]
-    (when (and (pos? n)
-               (not (get-in @warning-output-flags ks)))
-      ;; lein kind of lets us down here, since the middleware is invoked multiple
-      ;; times due to profiles. So we'll have multiple chances to report dependencies,
-      ;; but because the output is overwhelming (especially on very large
-      ;; projects) we only do the report the first time; this means that you might
-      ;; have to correct all your normal dependencies before even seeing the errors
-      ;; about :dev profile dependencies.
-      (swap! warning-output-flags assoc-in ks true)
+  (let [n (count unknown-ids)]
+    (when (pos? n)
       (main/warn
         (apply str
                (format "Dependency error in project `%s':\n"
@@ -192,47 +177,49 @@
              (reduce #(d/depend %1 set-id %2) graph extends)))))
 
 (defn- apply-set
-  [shared-dependencies project set-id]
+  [project set-id shared-dependencies dependencies-ks]
   ;; Using update-in for compatibility with older version of Clojure.
   ;; Convert it to update at some point in future.
-  (update-in project [:dependencies]
+  (update-in project dependencies-ks
              into (get-in shared-dependencies [set-id :dependencies])))
 
 (defn- apply-sets
-  [project sets shared-dependencies]
-  (main/debug (format "Applying dependency sets %s to project %s."
-                      (str/join ", " sets)
-                      (:name project)))
-  ;; Since order counts, and what we get is usually some flavor of list (or lazy
-  ;; seq), convert dependencies into a vector first.
-  (-> (reduce (partial apply-set shared-dependencies)
-              (update-in project [:dependencies] vec)
-              (order-sets-by-dependency project shared-dependencies sets))
-      ;; There's any number of ways that we can end up with duplicated lines
-      ;; including that the middleware is invoked for each profile.
-      ;; So we clean the dependencies.
-      (update-in [:dependencies]
-                 (comp vec distinct))))
-
-(defn- extend-project-with-sets [project set-ids]
-  (or (if-let [shared-dependencies (read-shared-dependencies project)]
-        (apply-sets project set-ids shared-dependencies))
-      ;; Any prior stage can return nil on a failure, and we'll just return
-      ;; the project unchanged.
-      project))
+  [project profile shared-dependencies]
+  (let [base-ks (if profile
+                  [:profiles profile]
+                  [])
+        dependencies-ks (conj base-ks :dependencies)
+        sets-ks (conj base-ks :dependency-sets)
+        ;; By the time the middleware is invoked, the :dependency-sets key has
+        ;; been merged. We want to see the raw version, from before profiles
+        ;; are merged.
+        sets (get-in (-> project meta :without-profiles) sets-ks)]
+    (if (seq sets)
+      (do
+        (main/debug (format "Applying dependency sets %s (from %s profile) to project %s."
+                            (str/join ", " sets)
+                            (or profile "default")
+                            (:name project)))
+        ;; Since order counts, and what we get is usually some flavor of list (or lazy
+        ;; seq), convert dependencies into a vector first.
+        (-> (reduce #(apply-set %1 %2 shared-dependencies dependencies-ks)
+                    (update-in project dependencies-ks vec)
+                    (order-sets-by-dependency project shared-dependencies sets))
+            ;; There's any number of ways that we can end up with duplicated lines,
+            ;; so we clean the dependencies.
+            (update-in dependencies-ks
+                       (comp vec distinct))))
+      project)))
 
 (defn middleware
-  "The middleware invoked (multiple times!) by Leiningen, to extend and modify
+  "The middleware invoked by Leiningen, to extend and modify
   the project description. This middleware is triggered by the :dependency-sets
   key, and modifies the :dependencies key."
   [project]
-  (if-let [set-ids (-> project :dependency-sets seq)]
-    (extend-project-with-sets project set-ids)
-    (let [project-name (:name project)
-          ks [project-name :missing-ids]]
-      (when-not (get-in @warning-output-flags ks)
-        (swap! warning-output-flags assoc-in ks true)
-        (main/warn (format
-                     "Project %s should specify a list of dependency set ids in its :dependency-sets key."
-                     project-name)))
-      project)))
+  (if-let [shared-dependencies (read-shared-dependencies project)]
+    (reduce (fn [project' profile]
+              (apply-sets project' profile shared-dependencies))
+            project
+            (into [nil] (-> project meta :active-profiles)))
+    ;; Case where dependencies file not found:
+    project))
