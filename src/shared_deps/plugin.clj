@@ -220,6 +220,8 @@
     (reduce (fn [project' profile]
               (apply-sets project' profile shared-dependencies))
             project
-            (into [nil] (-> project meta :active-profiles)))
+            (->> (-> project meta :active-profiles)
+                 distinct
+                 (into [nil])))
     ;; Case where dependencies file not found:
     project))
