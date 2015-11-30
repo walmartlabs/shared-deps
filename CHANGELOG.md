@@ -1,3 +1,5 @@
+## 0.2.4 - UNRELEASED
+
 ## 0.2.3 - 27 Nov 2015
 
 Properly handle dependencies across profiles so that a correct pom.xml
