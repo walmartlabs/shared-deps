@@ -9,14 +9,22 @@
             [io.aviso.toolchest.macros :refer [cond-let]]
             [clojure.edn :as edn]
             [medley.core :as medley]
-            [com.stuartsierra.dependency :as d])
+            [com.stuartsierra.dependency :as d]
+            [robert.hooke :as hooke]
+            [leiningen.pom :as pom])
   (:import (java.io PushbackReader File)))
 
+(defn- project-name
+  [{project-group :group
+    project-name :name}]
+  (if project-group
+    (str project-group "/" project-name)
+    project-name))
 
 (defn- find-dependencies-file
   [{root-path :root
-    project-name :name}]
-  (main/debug (format "Seaching for shared dependencies of project %s, starting in `%s'." project-name root-path))
+    :as project}]
+  (main/debug (format "Seaching for shared dependencies of project %s, starting in `%s'." (project-name project) root-path))
   (loop [dir (io/file root-path)]
     (cond-let
       (nil? dir)
@@ -108,14 +116,13 @@
        (apply str)))
 
 (defn- report-unknown-dependencies
-  [{project-group :group
-    project-name :name} unknown-ids shared-dependencies]
+  [project unknown-ids shared-dependencies]
   (let [n (count unknown-ids)]
     (when (pos? n)
       (main/warn
         (apply str
                (format "Dependency error in project `%s':\n"
-                       (symbol project-group project-name))
+                       (project-name project))
                (if (= (count unknown-ids) 1)
                  (format "The dependency id `%s' is not defined." (first unknown-ids))
                  (str "The following dependency ids are not defined:"
@@ -181,6 +188,8 @@
   (update-in project dependencies-ks
              into (get-in shared-dependencies [set-id :dependencies])))
 
+(def ^:private vec-distinct (comp vec distinct))
+
 (defn- apply-sets
   [project profile shared-dependencies]
   (let [base-ks (if profile
@@ -197,29 +206,60 @@
         (main/debug (format "Applying dependency sets %s (from %s profile) to project %s."
                             (str/join ", " sets)
                             (or profile "default")
-                            (:name project)))
+                            (project-name project)))
         ;; Since order counts, and what we get is usually some flavor of list (or lazy
         ;; seq), convert dependencies into a vector first.
-        (-> (reduce #(apply-set %1 %2 shared-dependencies dependencies-ks)
-                    (update-in project dependencies-ks vec)
-                    (order-sets-by-dependency project shared-dependencies sets))
-            ;; There's any number of ways that we can end up with duplicated lines,
-            ;; so we clean the dependencies.
-            (update-in dependencies-ks
-                       (comp vec distinct))))
+        (let [project' (-> (reduce #(apply-set %1 %2 shared-dependencies dependencies-ks)
+                                   (update-in project dependencies-ks vec)
+                                   (order-sets-by-dependency project shared-dependencies sets))
+                           ;; There's any number of ways that we can end up with duplicated lines,
+                           ;; so we clean the dependencies.
+                           (update-in dependencies-ks vec-distinct))
+              dependencies+ (get-in project' dependencies-ks)]
+          ;; Rewrite the :without-profiles version of the project as if the dependency set
+          ;; dependencies were there originally; this is necessary to make things work correctly
+          ;; when using the pom task.
+          (vary-meta project' assoc-in (into [:without-profiles] dependencies-ks) dependencies+)))
       project)))
+
+(require '[clojure.pprint :refer [pprint]])
 
 (defn middleware
   "The middleware invoked by Leiningen, to extend and modify
   the project description. This middleware is triggered by the :dependency-sets
   key, and modifies the :dependencies key."
   [project]
-  (if-let [shared-dependencies (read-shared-dependencies project)]
-    (reduce (fn [project' profile]
-              (apply-sets project' profile shared-dependencies))
-            project
-            (->> (-> project meta :active-profiles)
-                 distinct
-                 (into [nil])))
-    ;; Case where dependencies file not found:
-    project))
+  (let [profiles (->> project meta :included-profiles (filter keyword?) distinct)]
+    (if-let [shared-dependencies (read-shared-dependencies project)]
+      (do
+        (main/debug (format
+                      "Adding shared dependencies for project %s with profiles %s."
+                      (project-name project)
+                      (str/join ", " profiles)))
+        (let [project' (reduce (fn [project' profile]
+                                 (apply-sets project' profile shared-dependencies))
+                               project
+                               (into [nil] profiles))
+              ;; Ok, now we need to "fold" in each profile's dependencies into
+              ;; the main :dependencies; this replicates what is normally done
+              ;; when normalizing a profile before the middleware is invoked.
+              combined-project (reduce #(update-in %1 [:dependencies]
+                                                   into
+                                                   (get-in project' [:profiles %2 :dependencies]))
+                                       project'
+                                       profiles)]
+          ;; The above may (possibly) introduce some duplication:
+          (update-in combined-project [:dependencies] distinct)))
+      ;; Case where dependencies file not found:
+      project)))
+
+;; This is necessary to work around a problem with the pom task; it captures
+;; the original project, but in our case, that's not quite what we want
+;; as we want; without this hook, we end up with all profile dependencies (including
+;; :dev and :test) as full dependencies in the pom.xml.
+;; However, this is not perfect as it leaves some built-in dependencies on
+;; org.clojure/tools.nrepl and clojure-complete in the output pom.xml.
+
+(hooke/add-hook #'pom/make-pom
+                (fn [f project & rest]
+                  (apply f (-> project meta :without-profiles) rest)))
