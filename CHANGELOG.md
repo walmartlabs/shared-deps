@@ -1,6 +1,11 @@
-## 0.2.4 - UNRELEASED
+## 0.2.4 - 30 Nov 2015
 
 Ensure each profile is processed just once.
+
+Project names are reported fully qualified with namespace, when one is provided.
+
+Fix a number of issues with dependencies vs. pom.xml generation.
+There are still outstanding issues with pom.xml generation.
 
 ## 0.2.3 - 27 Nov 2015
 
