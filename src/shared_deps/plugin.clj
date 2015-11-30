@@ -178,8 +178,6 @@
 
 (defn- apply-set
   [project set-id shared-dependencies dependencies-ks]
-  ;; Using update-in for compatibility with older version of Clojure.
-  ;; Convert it to update at some point in future.
   (update-in project dependencies-ks
              into (get-in shared-dependencies [set-id :dependencies])))
 
