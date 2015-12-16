@@ -254,8 +254,8 @@
       project)))
 
 ;; This is necessary to work around a problem with the pom task; it captures
-;; the original project, but in our case, that's not quite what we want
-;; as we want; without this hook, we end up with all profile dependencies (including
+;; the original project, but in our case, that's not quite what we want.
+;; Without this hook, we end up with all profile dependencies (including
 ;; :dev and :test) as full dependencies in the pom.xml.
 ;; However, this is not perfect as it leaves some built-in dependencies on
 ;; org.clojure/tools.nrepl and clojure-complete in the output pom.xml.
