@@ -26,6 +26,10 @@ dependencies and their individual transitive dependencies.
 Having a DRY solution here keeps the `project.clj` files very concise
 and readable.
 
+**NOTE:** We've recently discoverred that the plugin is
+[not compatible with Leiningen checkouts](https://github.com/walmartlabs/shared-deps/issues/3).
+This is an outstanding issue.
+
 ## Example
 
 Your `dependencies.edn` file contains the following:
