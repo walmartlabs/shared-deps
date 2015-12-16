@@ -1,4 +1,4 @@
-## 0.2.5 - UNRELEASED
+## 0.2.5 - 16 Dec 2015
 
 Adding caching for speed improvements under very large projects.
 
