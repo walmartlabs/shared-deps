@@ -1,3 +1,7 @@
+## 0.2.5 - UNRELEASED
+
+Adding caching for speed improvements under very large projects.
+
 ## 0.2.4 - 30 Nov 2015
 
 Ensure each profile is processed just once.

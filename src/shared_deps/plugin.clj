@@ -38,19 +38,20 @@
       :else
       (recur (.getParentFile dir)))))
 
-(defn- read-dependencies-file
-  [file]
-  (main/debug (format "Reading shared dependencies from `%s'." file))
-  (with-open [s (io/reader file)]
-    ;; Allow the values for each dependency set to be a vector, which is expanded
-    ;; to a map with key :dependencies
-    (medley/map-vals
-      #(if (vector? %)
-        {:dependencies %}
-        %)
-      (-> s
-          PushbackReader.
-          edn/read))))
+(def ^:private read-dependencies-file
+  (memoize
+   (fn [file]
+     (main/debug (format "Reading shared dependencies from `%s'." file))
+     (with-open [s (io/reader file)]
+       ;; Allow the values for each dependency set to be a vector, which is expanded
+       ;; to a map with key :dependencies
+       (medley/map-vals
+        #(if (vector? %)
+           {:dependencies %}
+           %)
+        (-> s
+            PushbackReader.
+            edn/read))))))
 
 (defn- read-raw [^File f]
   (main/debug (format "Reading project file `%s'." f))
@@ -60,24 +61,25 @@
     (catch Throwable t
       (main/warn (.getMessage t) t))))
 
-(defn- build-sibling-dependencies-map
-  [root-dir root-project-file]
-  (let [root-project (read-raw root-project-file)]
-    (->> root-project
-         :sub
-         (reduce (fn [deps module-path]
-                   (if-let [project (read-raw (io/file root-dir module-path "project.clj"))]
-                     (let [{project-name :name
-                            project-group :group
-                            version :version} project
-                           name-symbol (symbol project-group project-name)]
-                       (assoc-in deps [name-symbol :dependencies]
-                                 ;; The value is just like an entry in the
-                                 ;; dependencies.edn file: a vector of dependency
-                                 ;; specs (each a vector).
-                                 [[name-symbol version]]))
-                     deps))
-                 {}))))
+(def ^:private build-sibling-dependencies-map
+  (memoize
+   (fn [root-dir root-project-file]
+     (let [root-project (read-raw root-project-file)]
+       (->> root-project
+            :sub
+            (reduce (fn [deps module-path]
+                      (if-let [project (read-raw (io/file root-dir module-path "project.clj"))]
+                        (let [{project-name :name
+                               project-group :group
+                               version :version} project
+                              name-symbol (symbol project-group project-name)]
+                          (assoc-in deps [name-symbol :dependencies]
+                                    ;; The value is just like an entry in the
+                                    ;; dependencies.edn file: a vector of dependency
+                                    ;; specs (each a vector).
+                                    [[name-symbol version]]))
+                        deps))
+                    {}))))))
 
 
 (defn- build-sibling-project-dependencies
