@@ -224,8 +224,6 @@
           (vary-meta project' assoc-in (into [:without-profiles] dependencies-ks) dependencies+)))
       project)))
 
-(require '[clojure.pprint :refer [pprint]])
-
 (defn middleware
   "The middleware invoked by Leiningen, to extend and modify
   the project description. This middleware is triggered by the :dependency-sets
