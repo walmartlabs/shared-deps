@@ -129,7 +129,7 @@
   120)
 
 (defn- ->long-id-list
-  "Somewhat list [[->id-list]], but formats the results into three columns of equal widths."
+  "Somewhat like [[->id-list]], but formats the results into three columns of equal widths."
   [ids]
   (let [sorted (->> ids
                     (map str)
