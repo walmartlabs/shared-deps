@@ -1,5 +1,8 @@
 ## 0.2.6 - UNRELEASED
 
+The list of known dependency ids, output when an unknown dependency id is encountered,
+is now output in multiple columns.
+
 ## 0.2.5 - 16 Dec 2015
 
 Adding caching for speed improvements under very large projects.
