@@ -114,7 +114,7 @@ those will _silently_ override any automatically generated sibling dependencies.
 
 ## Usage
 
-Put `[walmartlabs/shared-deps "0.2.3"]` into the `:plugins` vector of your `project.clj`.
+Put `[walmartlabs/shared-deps "0.2.6"]` into the `:plugins` vector of your `project.clj`.
 
 This must be done in *each* sub-module, and must *not* be in the top-level module
 (the one that has the `lein-sub` plugin).
