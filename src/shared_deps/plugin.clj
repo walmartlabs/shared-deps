@@ -117,6 +117,48 @@
        (interleave (repeat "\n - "))
        (apply str)))
 
+(defn- pad-to [s width]
+  (let [l (.length s)]
+    (if (= l width)
+      s
+      (apply str s
+             (repeat (- width l) " ")))))
+
+(def ^:private desired-width
+  "This is somewhat arbitrary."
+  120)
+
+(defn- ->long-id-list
+  "Somewhat list [[->id-list]], but formats the results into three columns of equal widths."
+  [ids]
+  (let [sorted (->> ids
+                    (map str)
+                    sort)
+        longest (->> sorted
+                     (map #(.length %))
+                     (reduce max))
+        id-count (count sorted)
+        columns (-> (/ desired-width (+ 2 longest))
+                    Math/floor
+                    long)
+        rows (-> id-count
+                 (/ columns)
+                 Math/ceil
+                 long)]
+    (with-out-str
+      (doseq [row (range 0 rows)
+              col (range 0 columns)
+              :let [i (+ (* col rows) row)]
+              :when (< i (dec id-count))
+              :let [id (nth sorted i)]]
+        (when (and (pos? row)
+                   (zero? col))
+          (println))
+        (print "  "
+               (if (= col (dec columns))
+                 id
+                 (pad-to id longest)))))))
+
 (defn- report-unknown-dependencies
   [project unknown-ids shared-dependencies]
   (let [n (count unknown-ids)]
@@ -129,8 +171,8 @@
                  (format "The dependency id `%s' is not defined." (first unknown-ids))
                  (str "The following dependency ids are not defined:"
                       (->id-list unknown-ids)))
-               "\nAvailable dependency ids:"
-               (-> shared-dependencies keys ->id-list))))))
+               "\nAvailable dependency ids:\n"
+               (-> shared-dependencies keys ->long-id-list))))))
 
 (defn- order-sets-by-dependency
   "Builds a graph of the dependencies of the sets, used to order
@@ -209,9 +251,9 @@
                             (str/join ", " sets)
                             (or profile "default")
                             (project-name project)))
-        ;; Since order counts, and what we get is usually some flavor of list (or lazy
-        ;; seq), convert dependencies into a vector first.
         (let [project' (-> (reduce #(apply-set %1 %2 shared-dependencies dependencies-ks)
+                                   ;; Since order counts, and what we get is usually some flavor of list (or lazy
+                                   ;; seq), convert dependencies into a vector first.
                                    (update-in project dependencies-ks vec)
                                    (order-sets-by-dependency project shared-dependencies sets))
                            ;; There's any number of ways that we can end up with duplicated lines,
