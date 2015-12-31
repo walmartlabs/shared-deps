@@ -91,7 +91,7 @@
   [{:keys [profiles project shared-dependencies]}]
 
   (let [dependencies (merge-project-data profiles project :dependencies)]
-    (-> [(d/graph-attrs {:color :blue})
+    (-> [(d/graph-attrs {:rankdir :LR})
          [::root {:label (project-label (:group project) (:name project) (:version project)) :shape :doubleoctagon}]]
         (into (direct-dependencies dependencies))
         (add-shared-deps profiles project shared-dependencies))))
@@ -100,7 +100,7 @@
   [project-data]
   (->> project-data
        build-graph
-       d/graph
+       d/digraph
        d/dot))
 
 (defn- show!
