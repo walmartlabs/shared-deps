@@ -280,7 +280,11 @@
                       (str/join ", " profiles)))
         (let [project' (reduce (fn [project' profile]
                                  (apply-sets project' profile shared-dependencies))
-                               project
+                               (vary-meta project assoc
+                                          ::data
+                                          {:profiles profiles
+                                           :project project
+                                           :shared-dependencies shared-dependencies})
                                (into [nil] profiles))
               ;; Ok, now we need to "fold" in each profile's dependencies into
               ;; the main :dependencies; this replicates what is normally done
@@ -294,6 +298,12 @@
           (update-in combined-project [:dependencies] distinct)))
       ;; Case where dependencies file not found:
       project)))
+
+(defn extract-data
+  "Extracts data from the project (placed there by the middleware) that defines the profiles,
+  raw project, and shared dependencies."
+  [project]
+  (-> project meta ::data))
 
 ;; This is necessary to work around a problem with the pom task; it captures
 ;; the original project, but in our case, that's not quite what we want.

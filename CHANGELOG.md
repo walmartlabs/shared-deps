@@ -3,6 +3,9 @@
 The list of known dependency ids, output when an unknown dependency id is encountered,
 is now output in multiple columns.
 
+The plugin now includes a `viz-deps` task; this will generate a visualization
+of the project's dependency graph, as a PDF file.
+
 ## 0.2.5 - 16 Dec 2015
 
 Adding caching for speed improvements under very large projects.
