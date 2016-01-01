@@ -7,99 +7,119 @@
             [clojure.java.browse :refer [browse-url]]
             [dorothy.core :as d]))
 
-(defn- project-label [group project-name version]
-  (if group
-    (format "%s/%s%n%s" group project-name version)
-    (format "%s%n%s" project-name version)))
-
 (defn- merge-project-data
   [profiles project key]
-  (into (set (get project key))
+  (into (get project key)
         (mapcat #(get-in project [:profiles % key])
                 profiles)))
-
-(defn- dependency->graph-id
-  "For a dependency, extracts and normalizes the artifact name symbol."
-  [dependency]
-  (let [[artifact-name] dependency]
-    (str "dep-" artifact-name)))
-
-(defn- set->graph-id
-  [set-id]
-  (if (= set-id ::root)
-    set-id
-    (str "set-" (name set-id))))
-
-(defn- set->graph-node
-  [set-id]
-  [(set->graph-id set-id) {:label (str set-id)
-                           :shape :trapezium}])
 
 (defn- dependency->label
   [dependency]
   (let [[artifact-name version] dependency]
     (format "%s%n%s" artifact-name version)))
 
-(defn- dependency->graph-node
+(defn gen-graph-id
+  [k]
+  (str (gensym (str (name k) "-"))))
+
+(defn- minimal-dependency
+  "Reduces a dependency to just its first two values; symbol (for group and artifact) and
+  version."
   [dependency]
-  [(dependency->graph-id dependency) {:label (dependency->label dependency)}])
+  (if (= 2 (count dependency))
+    dependency
+    (->> dependency (take 2) vec)))
 
-(defn- direct-dependencies
-  [dependencies]
-  (reduce into []
-          (map (fn [d]
-                 ;; Add a node and an edge
-                 [(dependency->graph-node d)
-                  [::root (dependency->graph-id d)]])
-               dependencies)))
 
-(defn- add-set-dependencies [graph shared-deps set-ids]
-  ;; This is a  bit clumsy when a dependency is both explicit and
-  ;; provided via a dependency set.
-  (reduce (fn [graph' set-id]
-            (let [deps (get-in shared-deps [set-id :dependencies])]
-              (-> graph'
-                  (into (map dependency->graph-node deps))
-                  (into (map #(vector (set->graph-id set-id) (dependency->graph-id %)) deps)))))
-          graph
-          set-ids))
+(defn- find-dependency-graph-id
+  [graph dependency]
+  (get-in graph [:deps (first dependency)]))
 
-(defn- add-shared-deps
-  [graph profiles project shared-deps]
-  (let [root-set-ids (vec (merge-project-data profiles project :dependency-sets))
-        queue-init (mapv vector
-                         (repeat ::root)
-                         root-set-ids)]
-    (loop [result graph
-           ;; which sets have nodes (not just edges) in the graph?
-           added-set-ids #{}
-           queue queue-init]
-      (if (empty? queue)
-        (-> result
-            (into (map set->graph-node) added-set-ids)
-            (add-set-dependencies shared-deps added-set-ids))
-        (let [[[from-node-id set-id] & more-queue] queue]
-          (recur
-            (conj result [(set->graph-id from-node-id) (set->graph-id set-id)])
-            (conj added-set-ids set-id)
-            (into more-queue
-                  (mapv #(vector set-id %)
-                        (get-in shared-deps [set-id :extends])))))))))
+(defn- add-edge
+  [graph from-graph-id to-graph-id]
+  (update-in graph [:edges] conj [from-graph-id to-graph-id]))
 
-(defn- build-graph
-  "Builds a digraph of the dependencies, ready to pass to `dot`."
+(defn- add-node
+  [graph node-id attributes]
+  (assoc-in graph [:nodes node-id] (if (string? attributes)
+                                     {:label attributes}
+                                     attributes)))
+
+(defn- add-dependencies
+  [graph source-graph-id target-dependencies]
+  (->> target-dependencies
+       (map minimal-dependency)
+       distinct
+       (reduce (fn [graph' dependency]
+                 (if-let [dep-graph-id (find-dependency-graph-id graph' dependency)]
+                   (add-edge graph' source-graph-id dep-graph-id)
+                   (let [dependency-key (first dependency)
+                         new-dependency-graph-id (gen-graph-id dependency-key)]
+                     (-> graph'
+                         (assoc-in [:deps dependency-key] new-dependency-graph-id)
+                         (add-node new-dependency-graph-id (dependency->label dependency))
+                         (add-edge source-graph-id new-dependency-graph-id)))))
+               graph)))
+
+(defn- add-root-dependencies
+  [graph profiles project]
+  (add-dependencies graph :root (merge-project-data profiles project :dependencies)))
+
+(defn- add-set
+  [graph from-graph-id set-id shared-dependencies]
+  (if (get-in graph [:sets set-id])
+    graph                                                   ; already present
+    (let [set-graph-id (gen-graph-id set-id)
+          set-dependencies (get-in shared-dependencies [set-id :dependencies])
+          set-extends (get-in shared-dependencies [set-id :extends])
+          graph' (-> graph
+                     (assoc-in [:sets set-id] set-graph-id)
+                     (add-node set-graph-id {:label (str set-id)
+                                             :shape :trapezium})
+                     (add-edge from-graph-id set-graph-id)
+                     (add-dependencies set-graph-id set-dependencies))]
+      (reduce (fn [graph-a extended-set-id]
+                (add-set graph-a set-graph-id extended-set-id shared-dependencies))
+              graph'
+              set-extends))))
+
+(defn- add-root-sets
+  [graph profiles project shared-dependencies]
+  (->> (merge-project-data profiles project :dependency-sets)
+       distinct
+       (reduce (fn [graph' set-id]
+                 (add-set graph' :root set-id shared-dependencies))
+               graph)))
+
+(defn- build-dependency-graph
+  "Builds out a structured dependency graph, from which a Dorothy node graph can be constructed."
   [{:keys [profiles project shared-dependencies]}]
+  (let [root-dependency [(symbol (-> project :group str) (-> project :name str)) (:version project)]]
+    ;; :nodes - map from node graph id to node attributes
+    ;; :edges - list of edge tuples [from graph id, to graph id]
+    ;; :sets - map from set id (a keyword or a symbol, typically) to a generated node graph id (a symbol)
+    ;; :deps - map from artifact symbol (e.g., com.walmartlab/shared-deps) to a generated node graph id
+    (-> {:nodes {:root {:label (dependency->label root-dependency)
+                        :shape :doubleoctagon}}
+         :edges []
+         :sets {}
+         :deps {}}
+        (add-root-dependencies profiles project)
+        (add-root-sets profiles project shared-dependencies))))
 
-  (let [dependencies (merge-project-data profiles project :dependencies)]
-    (-> [(d/graph-attrs {:rankdir :LR})
-         [::root {:label (project-label (:group project) (:name project) (:version project)) :shape :doubleoctagon}]]
-        (into (direct-dependencies dependencies))
-        (add-shared-deps profiles project shared-dependencies))))
+(defn- ->node-graph
+  [dependency-graph]
+  (reduce into
+          [(d/graph-attrs {:rankdir :LR})]
+          [(for [[k v] (:nodes dependency-graph)]
+             [k v])
+           (:edges dependency-graph)]))
 
 (defn- build-dot
   [project-data]
   (->> project-data
-       build-graph
+       build-dependency-graph
+       ->node-graph
        d/digraph
        d/dot))
 
@@ -146,6 +166,8 @@
 
 (comment
   (show! proj-data)
+
+  (-> proj-data build-dependency-graph ->node-graph build-dot)
 
   (-> proj-data build-dot println)
   )
