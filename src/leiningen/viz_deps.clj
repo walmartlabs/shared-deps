@@ -4,7 +4,9 @@
         clojure.pprint)
   (:require [leiningen.core.main :as main]
             [shared-deps.plugin :as plugin]
+            [io.aviso.toolchest.macros :refer [cond-let]]
             [clojure.java.browse :refer [browse-url]]
+            [leiningen.core.classpath :as classpath]
             [dorothy.core :as d]))
 
 (defn- merge-project-data
@@ -91,9 +93,31 @@
                  (add-set graph' :root set-id shared-dependencies))
                graph)))
 
-(defn- build-dependency-graph
+(defn- add-transitive-dependencies [graph project]
+  (let [hierarchy (classpath/dependency-hierarchy :dependencies project)]
+    (loop [graph graph
+           queue (into [] hierarchy)
+           processed #{}]
+      (cond-let
+        (empty? queue)
+        graph
+
+        [[[dependency transitives] & more-queue] queue
+         dependency' (minimal-dependency dependency)]
+
+        ;; May need to get the minimal of this
+        (contains? processed dependency')
+        (recur graph more-queue processed)
+
+        :else
+        (let [source-graph-id (find-dependency-graph-id graph dependency')]
+          (recur (add-dependencies graph source-graph-id (keys transitives))
+                 (concat more-queue transitives)
+                 (conj processed dependency)))))))
+
+(defn- dependency-graph
   "Builds out a structured dependency graph, from which a Dorothy node graph can be constructed."
-  [{:keys [profiles project shared-dependencies]}]
+  [{:keys [profiles project shared-dependencies]} merged-project]
   (let [root-dependency [(symbol (-> project :group str) (-> project :name str)) (:version project)]]
     ;; :nodes - map from node graph id to node attributes
     ;; :edges - list of edge tuples [from graph id, to graph id]
@@ -105,9 +129,10 @@
          :sets {}
          :deps {}}
         (add-root-dependencies profiles project)
-        (add-root-sets profiles project shared-dependencies))))
+        (add-root-sets profiles project shared-dependencies)
+        (add-transitive-dependencies merged-project))))
 
-(defn- ->node-graph
+(defn- node-graph
   [dependency-graph]
   (reduce into
           [(d/graph-attrs {:rankdir :LR})]
@@ -116,18 +141,11 @@
            (:edges dependency-graph)]))
 
 (defn- build-dot
-  [project-data]
-  (->> project-data
-       build-dependency-graph
-       ->node-graph
-       d/digraph
-       d/dot))
-
-(defn- show!
-  [project-data]
-  (-> project-data
-      build-dot
-      d/show!))
+  [project]
+  (-> (dependency-graph (plugin/extract-data project) project)
+      node-graph
+      d/digraph
+      d/dot))
 
 (def ^:private output-file "target/dependencies.pdf")
 
@@ -143,31 +161,9 @@
      (main/warn "view should be omitted, or :no-view to avoid opening the generated dependency graph."))
 
    (-> project
-       plugin/extract-data
        build-dot
        (d/save! output-file {:format :pdf}))
 
    (main/info (format "Dependency graph saved to `%s'." output-file))
    (when-not (= ":no-view" view)
      (browse-url output-file))))
-
-(def proj-data '{:profiles [:dev]
-                 :shared-dependencies {:testing {:extends [:repl-help]
-                                                 :dependencies [[testing "1.0"]]}
-                                       :repl-help {:dependencies [[repl-help "1.3"]
-                                                                  [repl-fix "1.4.0"]]}
-                                       :database {:dependencies [[postgres "1.0"]]}}
-                 :project
-                 {:group eReceipts :name api.receipt :version "0.1.0-SNAPSHOT"
-                  :dependencies [[io.aviso/pretty "0.1.20"]]
-                  :dependency-sets [:database]
-                  :profiles {:dev {:dependencies [[io.aviso/toolchest "0.1.3"]]
-                                   :dependency-sets [:testing]}}}})
-
-(comment
-  (show! proj-data)
-
-  (-> proj-data build-dependency-graph ->node-graph build-dot)
-
-  (-> proj-data build-dot println)
-  )
