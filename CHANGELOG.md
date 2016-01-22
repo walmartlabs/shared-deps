@@ -1,4 +1,4 @@
-## 0.2.6 - UNRELEASED
+## 0.2.6 - 22 Jan 2016
 
 The list of known dependency ids, output when an unknown dependency id is encountered,
 is now output in multiple columns.

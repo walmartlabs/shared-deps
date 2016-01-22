@@ -112,6 +112,15 @@ Be aware that your `dependencies.edn` file may also have symbol keys (not
 just keywords), and
 those will _silently_ override any automatically generated sibling dependencies.
 
+## Visualization
+
+The plugin adds a Leiningen task, **viz-deps**.
+The task will assemble the complete classpath for the project, including
+dependency sets, and generate a diagram file
+showing those dependencies.
+
+You must have [graphviz](http://www.graphviz.org) installed.
+
 ## Usage
 
 Put `[walmartlabs/shared-deps "0.2.6"]` into the `:plugins` vector of your `project.clj`.
