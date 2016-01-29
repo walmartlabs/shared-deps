@@ -1,6 +1,6 @@
-(defproject walmartlabs/shared-deps "0.2.6"
+(defproject clanhr/shared-deps "0.2.6"
   :description "Centralized declaration of dependencies for multi-projects"
-  :url "https://github.com/walmartlabs/shared-deps"
+  :url "https://github.com/clanhr/shared-deps"
   :license {:name "Apache Software License 2.0"
             :url "http://www.apache.org/licenses/LICENSE-2.0"}
   :eval-in-leiningen true
