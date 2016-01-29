@@ -109,10 +109,21 @@
                                     read-dependencies-file)]
     (merge sibling-dependencies shared-dependencies)))
 
+(def current-millis (System/currentTimeMillis))
+
+(defn- get-source-file-name
+  "Gets the source file name"
+  [project]
+  (when-let [path (:dependencies.edn project)]
+    (let [path (if (.startsWith path "http")
+                 (str path "?" current-millis)
+                 path)]
+      path)))
+
 (defn- shared-dependencies
   [project]
-  (if-let [source (:dependencies.edn project)]
-    (read-dependencies-file (:dependencies.edn project))
+  (if-let [source (get-source-file-name project)]
+    (read-dependencies-file source)
     (read-shared-dependencies project)))
 
 (defn- ->id-list
