@@ -109,6 +109,12 @@
                                     read-dependencies-file)]
     (merge sibling-dependencies shared-dependencies)))
 
+(defn- shared-dependencies
+  [project]
+  (if-let [source (:dependencies.edn project)]
+    (read-dependencies-file (:dependencies.edn project))
+    (read-shared-dependencies project)))
+
 (defn- ->id-list
   [ids]
   (->> ids
@@ -272,7 +278,7 @@
   key, and modifies the :dependencies key."
   [project]
   (let [profiles (->> project meta :included-profiles (filter keyword?) distinct)]
-    (if-let [shared-dependencies (read-shared-dependencies project)]
+    (if-let [shared-dependencies (shared-dependencies project)]
       (do
         (main/debug (format
                       "Adding shared dependencies for project %s with profiles %s."
