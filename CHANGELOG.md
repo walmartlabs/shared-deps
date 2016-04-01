@@ -1,3 +1,5 @@
+## 0.2.7 - UNRELEASED
+
 ## 0.2.6 - 22 Jan 2016
 
 The list of known dependency ids, output when an unknown dependency id is encountered,
