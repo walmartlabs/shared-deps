@@ -1,4 +1,10 @@
-## 0.2.7 - UNRELEASED
+## 0.2.7 - 1 Apr 2016
+
+Recompute dependencies from the base version of the project (before profiles are applied).
+This may cause incompatibilities with other plugins that modify the dependencies, but
+does a better job in other cases.
+
+[Closed Issues](https://github.com/walmartlabs/shared-deps/issues?q=milestone%3A0.2.7+is%3Aclosed)
 
 ## 0.2.6 - 22 Jan 2016
 
