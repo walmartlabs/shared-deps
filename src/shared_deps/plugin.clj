@@ -7,12 +7,14 @@
             [clojure.java.io :as io]
             [clojure.string :as str]
             [io.aviso.toolchest.macros :refer [cond-let]]
+            [io.aviso.toolchest.metadata :refer [assoc-meta]]
             [clojure.edn :as edn]
             [medley.core :as medley]
             [com.stuartsierra.dependency :as d]
             [robert.hooke :as hooke]
             [leiningen.pom :as pom])
   (:import (java.io PushbackReader File)))
+
 
 (defn- project-name
   [{project-group :group
@@ -280,22 +282,22 @@
                       (str/join ", " profiles)))
         (let [project' (reduce (fn [project' profile]
                                  (apply-sets project' profile shared-dependencies))
-                               (vary-meta project assoc
-                                          ::data
-                                          {:profiles profiles
-                                           :project project
-                                           :shared-dependencies shared-dependencies})
-                               (into [nil] profiles))
-              ;; Ok, now we need to "fold" in each profile's dependencies into
+                         (-> project meta :without-profiles)
+                         (into [nil] profiles))
+              ;; Ok, now we need to "fold" each profile's dependencies into
               ;; the main :dependencies; this replicates what is normally done
               ;; when normalizing a profile before the middleware is invoked.
-              combined-project (reduce #(update-in %1 [:dependencies]
-                                                   into
-                                                   (get-in project' [:profiles %2 :dependencies]))
-                                       project'
-                                       profiles)]
-          ;; The above may (possibly) introduce some duplication:
-          (update-in combined-project [:dependencies] distinct)))
+              combined-dependencies (reduce into
+                                      (:dependencies project')
+                                      (map #(get-in project' [:profiles % :dependencies])
+                                        profiles))]
+          (-> project
+              ;; The above may (possibly) introduce some duplication:
+              (assoc :dependencies (-> combined-dependencies distinct vec))
+              (assoc-meta ::data
+                {:profiles            profiles
+                 :project             project
+                 :shared-dependencies shared-dependencies}))))
       ;; Case where dependencies file not found:
       project)))
 
