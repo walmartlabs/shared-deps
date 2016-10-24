@@ -123,7 +123,8 @@
 (defn- shared-dependencies
   [project]
   (if-let [source (get-source-file-name project)]
-    (read-dependencies-file source)
+    (do (spit ".dependencies.edn" (slurp source))
+        (read-dependencies-file source))
     (read-shared-dependencies project)))
 
 (defn- ->id-list
