@@ -1,4 +1,4 @@
-(defproject clanhr/shared-deps "0.2.6"
+(defproject clanhr/shared-deps "0.2.6.1"
   :description "Centralized declaration of dependencies for multi-projects"
   :url "https://github.com/clanhr/shared-deps"
   :license {:name "Apache Software License 2.0"
