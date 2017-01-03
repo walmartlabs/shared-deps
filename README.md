@@ -26,7 +26,7 @@ dependencies and their individual transitive dependencies.
 Having a DRY solution here keeps the `project.clj` files very concise
 and readable.
 
-**NOTE:** We've recently discoverred that the plugin is
+**NOTE:** We've recently discovered that the plugin is
 [not compatible with Leiningen checkouts](https://github.com/walmartlabs/shared-deps/issues/3).
 This is an outstanding issue.
 
@@ -41,10 +41,12 @@ Your `dependencies.edn` file contains the following:
  :cljs [[org.clojure/clojurescript "1.7.170"]]}
 ```
 
-Each dependency set can define any number of dependencies, including
-:exclusions or other options. These dependencies are simply
+Each dependency set can define any number of dependencies.
+These dependencies are simply
 appended to the standard list of dependencies provided
 in `project.clj`.
+
+Each dependency in a dependency set is *non-transitive*.
  
 A sub-project may define dependencies on some or all of these:
  

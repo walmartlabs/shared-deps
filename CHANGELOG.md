@@ -1,3 +1,9 @@
+## 0.2.8 - UNRELEASED
+
+Dependencies defined inside dependency sets are now automatically non-transitive.
+Instead, dependency sets should extend other dependency sets to provide transitive
+dependencies.
+
 ## 0.2.7 - 1 Apr 2016
 
 Recompute dependencies from the base version of the project (before profiles are applied).

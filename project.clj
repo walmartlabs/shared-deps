@@ -1,4 +1,4 @@
-(defproject walmartlabs/shared-deps "0.2.7"
+(defproject walmartlabs/shared-deps "0.2.8"
   :description "Centralized declaration of dependencies for multi-projects"
   :url "https://github.com/walmartlabs/shared-deps"
   :license {:name "Apache Software License 2.0"

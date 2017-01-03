@@ -15,15 +15,14 @@
             [leiningen.pom :as pom])
   (:import (java.io PushbackReader File)))
 
-
-(defn- project-name
+(defn ^:private project-name
   [{project-group :group
     project-name :name}]
   (if project-group
     (str project-group "/" project-name)
     project-name))
 
-(defn- find-dependencies-file
+(defn ^:private find-dependencies-file
   [{root-path :root
     :as project}]
   (main/debug (format "Seaching for shared dependencies of project %s, starting in `%s'." (project-name project) root-path))
@@ -40,6 +39,15 @@
       :else
       (recur (.getParentFile dir)))))
 
+(defn ^:private add-exclusion
+  [dependency]
+  (let [[artifact-id artifact-version & options-pairs] dependency]
+    (into [artifact-id artifact-version :exclusions '[*/*]] options-pairs)))
+
+(defn ^:private add-dependency-exclusions
+  [dependencies]
+  (mapv add-exclusion dependencies))
+
 (def ^:private read-dependencies-file
   (memoize
    (fn [file]
@@ -47,15 +55,19 @@
      (with-open [s (io/reader file)]
        ;; Allow the values for each dependency set to be a vector, which is expanded
        ;; to a map with key :dependencies
-       (medley/map-vals
-        #(if (vector? %)
-           {:dependencies %}
-           %)
-        (-> s
-            PushbackReader.
-            edn/read))))))
+       (let [dependency-defs (-> s
+                                 PushbackReader.
+                                 edn/read)]
+         (->> dependency-defs
+              (medley/map-vals
+                #(if (vector? %)
+                   {:dependencies %}
+                   %))
+              (medley/map-vals
+                #(update-in % [:dependencies] add-dependency-exclusions))))))))
 
-(defn- read-raw [^File f]
+(defn ^:private read-raw
+  [^File f]
   (main/debug (format "Reading project file `%s'." f))
   (try
     ;; Apparently, the path for read-raw has to be a string, not a File.
@@ -84,7 +96,7 @@
                     {}))))))
 
 
-(defn- build-sibling-project-dependencies
+(defn ^:private build-sibling-project-dependencies
   "Starting from a sub-project, work upwards to the parent project.clj;
   from this, extract's the :sub key (normally used by the lein-sub plugin),
   then use this to read all the sibling project's project.clj.  From this, a map
@@ -104,14 +116,14 @@
       :else
       (recur (.getParentFile dir)))))
 
-(defn- read-shared-dependencies
+(defn ^:private read-shared-dependencies
   [project]
   (let [sibling-dependencies (build-sibling-project-dependencies project)
         shared-dependencies (some-> (find-dependencies-file project)
                                     read-dependencies-file)]
     (merge sibling-dependencies shared-dependencies)))
 
-(defn- ->id-list
+(defn ^:private ->id-list
   [ids]
   (->> ids
        (map str)
@@ -119,7 +131,7 @@
        (interleave (repeat "\n - "))
        (apply str)))
 
-(defn- pad-to [s width]
+(defn ^:private pad-to [s width]
   (let [l (.length s)]
     (if (= l width)
       s
@@ -130,7 +142,7 @@
   "This is somewhat arbitrary."
   120)
 
-(defn- ->long-id-list
+(defn ^:private ->long-id-list
   "Somewhat like [[->id-list]], but formats the results into three columns of equal widths."
   [ids]
   (let [sorted (->> ids
@@ -161,7 +173,7 @@
                  id
                  (pad-to id longest)))))))
 
-(defn- report-unknown-dependencies
+(defn ^:private report-unknown-dependencies
   [project unknown-ids shared-dependencies]
   (let [n (count unknown-ids)]
     (when (pos? n)
@@ -176,7 +188,7 @@
                "\nAvailable dependency ids:\n"
                (-> shared-dependencies keys ->long-id-list))))))
 
-(defn- order-sets-by-dependency
+(defn ^:private order-sets-by-dependency
   "Builds a graph of the dependencies of the sets, used to order
   them when creating artifact dependencies in the project map.
 
@@ -229,14 +241,14 @@
              visited?'
              (reduce #(d/depend %1 set-id %2) graph extends)))))
 
-(defn- apply-set
+(defn ^:private apply-set
   [project set-id shared-dependencies dependencies-ks]
   (update-in project dependencies-ks
              into (get-in shared-dependencies [set-id :dependencies])))
 
 (def ^:private vec-distinct (comp vec distinct))
 
-(defn- apply-sets
+(defn ^:private apply-sets
   [project profile shared-dependencies]
   (let [base-ks (if profile
                   [:profiles profile]
