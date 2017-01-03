@@ -95,7 +95,6 @@
                         deps))
                     {}))))))
 
-
 (defn ^:private build-sibling-project-dependencies
   "Starting from a sub-project, work upwards to the parent project.clj;
   from this, extract's the :sub key (normally used by the lein-sub plugin),
@@ -257,8 +256,9 @@
         sets-ks (conj base-ks :dependency-sets)
         ;; By the time the middleware is invoked, the :dependency-sets key has
         ;; been merged. We want to see the raw version, from before profiles
-        ;; are merged.
-        sets (get-in (-> project meta :without-profiles) sets-ks)]
+        ;; are merged. However, from the parent project's sub task, :without-profiles
+        ;; metadata can be missing, so just use the raw project in that case.
+        sets (get-in (-> project meta (:without-profiles project)) sets-ks)]
     (if (seq sets)
       (do
         (main/debug (format "Applying dependency sets %s (from %s profile) to project %s."
