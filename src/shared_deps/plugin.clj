@@ -247,6 +247,7 @@
 
 (def ^:private vec-distinct (comp vec distinct))
 
+(require '[clojure.pprint :refer [pprint]])
 (defn ^:private apply-sets
   [project profile shared-dependencies]
   (let [base-ks (if profile
@@ -258,7 +259,8 @@
         ;; been merged. We want to see the raw version, from before profiles
         ;; are merged. However, from the parent project's sub task, :without-profiles
         ;; metadata can be missing, so just use the raw project in that case.
-        sets (get-in (-> project meta (:without-profiles project)) sets-ks)]
+        without-profiles (-> project meta (get :without-profiles project))
+        sets (get-in without-profiles sets-ks)]
     (if (seq sets)
       (do
         (main/debug (format "Applying dependency sets %s (from %s profile) to project %s."
@@ -273,11 +275,12 @@
                            ;; There's any number of ways that we can end up with duplicated lines,
                            ;; so we clean the dependencies.
                            (update-in dependencies-ks vec-distinct))
-              dependencies+ (get-in project' dependencies-ks)]
+              dependencies+ (get-in project' dependencies-ks)
+              without-profiles+ (update without-profiles dependencies-ks into dependencies+)]
           ;; Rewrite the :without-profiles version of the project as if the dependency set
           ;; dependencies were there originally; this is necessary to make things work correctly
           ;; when using the pom task.
-          (vary-meta project' assoc-in (into [:without-profiles] dependencies-ks) dependencies+)))
+          (vary-meta project'  assoc :without-profiles without-profiles+)))
       project)))
 
 (defn middleware
