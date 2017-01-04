@@ -1,4 +1,4 @@
-## 0.2.8 - UNRELEASED
+## 0.2.8 - 4 Jan 2017
 
 Dependencies defined inside dependency sets are now automatically non-transitive.
 Instead, dependency sets should extend other dependency sets to provide transitive

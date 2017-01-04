@@ -125,7 +125,7 @@ You must have [graphviz](http://www.graphviz.org) installed.
 
 ## Usage
 
-Put `[walmartlabs/shared-deps "0.2.6"]` into the `:plugins` vector of your `project.clj`.
+Put `[walmartlabs/shared-deps "0.2.8"]` into the `:plugins` vector of your `project.clj`.
 
 This must be done in *each* sub-module, and must *not* be in the top-level module
 (the one that has the `lein-sub` plugin).
@@ -137,6 +137,6 @@ to enable the lein-pprint plugin.
 
 ## License
 
-Copyright © 2015 Walmart Labs
+Copyright © 2015-2017 Walmart Labs
 
 Distributed under the Apache Software License 2.0.
